@@ -10,15 +10,17 @@
 */
 
 // require CPT helper class
-require_once( plugin_dir_path( __FILE__ ) . 'brCPTClass.php' );
+include( plugin_dir_path( __FILE__ ) . 'brCPTClass.php' );
 
 // add actions
 add_action( 'wp_enqueue_scripts', 'enqueuePostRatingScripts' );
-add_action('wp_ajax_nopriv_post-like', 'post_like');
-add_action('wp_ajax_post-like', 'post_like');
+add_action( 'wp_ajax_nopriv_post_up', 'post_rateUp' );
+add_action( 'wp_ajax_post_up', 'post_rateUp' );
+add_action( 'wp_ajax_nopriv_post_down', 'post_rateDown' );
+add_action( 'wp_ajax_post_down', 'post_rateDown' );
 
 // set up the post type we want the rating system for
-$videoPosts = new BR_Post_Type( 'Video Post' );
+$videoPosts = new Post_Type( 'Video Post' );
 
 // taxonomy for videoPosts
 $videoPosts->add_taxonomy( 'Video Subject' );
@@ -26,22 +28,26 @@ $videoPosts->add_taxonomy( 'Video Subject' );
 // add custom fields for yes/no/userVotes
 $videoPosts->add_meta_box( 'Votes', array(
   'yesVotes' => 'text',
+  'noVotes' => 'text',
   'totalVotes' => 'text',
   'userVotes' => 'text'
 ) );
 
 // enqueue the js/styles
 function enqueuePostRatingScripts() {
+  wp_enqueue_style( 'font-awesome', '//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.4.0/css/font-awesome.min.css' );
+  wp_enqueue_style( 'post-rate-styles', plugin_dir_url( __FILE__ ) . 'styles/style.css' );
   wp_enqueue_script( 'jquery' );
-  wp_enqueue_script( 'like-post', plugin_dir_url( __FILE__ ) . 'js/ratingFunctions.js', array( 'jquery' ), '1.0.0', true );
-  wp_localize_script( 'like-post', 'ajax_var', array(
+  wp_enqueue_script( 'rate-post', plugin_dir_url( __FILE__ ) . 'js/ratingFunctions.js', array( 'jquery' ), '1.0.0', true );
+  // localize var for the admin-ajax url and the nonce
+  wp_localize_script( 'rate-post', 'ajax_var', array(
     'url' => admin_url( 'admin-ajax.php' ),
     'nonce' => wp_create_nonce( 'ajax-nonce' )
-  ));
+  ) );
 }
 
 // when a post is liked
-function post_like()
+function post_rateDown()
 {
     // Check for nonce security
     $nonce = $_POST['nonce'];
@@ -49,91 +55,169 @@ function post_like()
     // if they aint got a nonce, send em away
     if ( ! wp_verify_nonce( $nonce, 'ajax-nonce' ) )
     {
-        die ( 'Busted!');
+        wp_die( 'Busted!');
     }
 
     // if a post is rated
-    if(isset($_POST['post_like']))
+    if( isset( $_POST['post_id'] ) )
+    {
+        // Retrieve user id
+        $userID = get_current_user_id();
+        $post_id = $_POST['post_id'];
+
+        // Get voters for the current post
+        $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
+
+        // make the array if it's not already made
+        if( !is_array( $userVotes ) ) {
+            $userVotes = array();
+        }
+
+        // Get down vote count for the current post
+        $meta_down = get_post_meta( $post_id, "votes_novotes", true );
+
+        // get up vote count for current post
+        $meta_up = get_post_meta( $post_id, 'votes_yesvotes', true);
+
+        // if user has already voted
+        if( !hasAlreadyVoted( $post_id ) )
+        {
+            // push user id into userVotes array and increase votes count
+            update_post_meta( $post_id, "votes_uservotes", $userVotes, false );
+            update_post_meta( $post_id, "votes_novotes", ++$meta_down );
+
+            // total the up/down votes together
+            $updatedMeta_down = get_post_meta( $post_id, "votes_novotes", true );
+            $meta_total = $updatedMeta_down + $meta_up;
+
+            // Update the total votes
+            update_post_meta( $post_id, "votes_totalvotes", $meta_total );
+
+            calculatePercentage( $meta_up, $meta_total );
+        }
+        else {
+            echo "already voted";
+        }
+    }
+    wp_die();
+}
+
+// when a post is liked
+function post_rateUp()
+{
+    // Check for nonce security
+    $nonce = $_POST['nonce'];
+
+    // if they aint got a nonce, send em away
+    if ( ! wp_verify_nonce( $nonce, 'ajax-nonce' ) )
+    {
+        wp_die( 'Busted!');
+    }
+
+    // if a post is rated
+    if( isset( $_POST['post_id'] ) )
     {
         // Retrieve user id
         $userID = get_current_user_id();
         $post_id = $_POST['post_id'];
 
         // Get voters'IPs for the current post
-        $userVotes = get_post_meta($post_id, "votes_uservotes");
+        $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
 
-        if(!is_array($userVotes))
+        if( !is_array( $userVotes ) ) {
             $userVotes = array();
+        }
 
-        // Get votes count for the current post
-        $meta_count = get_post_meta($post_id, "votes_totalvotes", true);
+        // Get yes votes count for the current post
+        $meta_up = get_post_meta( $post_id, "votes_yesvotes", true );
+
+        // Get no votes count for current post
+        $meta_down = get_post_meta( $post_id, "votes_novotes", true );
 
         // if user has already voted
-        if(!hasAlreadyVoted($post_id))
+        if( !hasAlreadyVoted( $post_id ) )
         {
-            $userVotes = $userID;
+            // push user id into userVotes array and increase votes count
+            add_post_meta( $post_id, "votes_uservotes", $userID, false );
+            update_post_meta( $post_id, "votes_yesvotes", ++$meta_up );
 
-            // Save ID and increase votes count
-            update_post_meta($post_id, "votes_uservotes", $userVotes);
-            update_post_meta($post_id, "votes_totalvotes", ++$meta_count);
+            // total the up/down votes together
+            $updatedMeta_up = get_post_meta( $post_id, "votes_yesvotes", true );
+            $meta_total = $updatedMeta_up + $meta_down;
 
-            // Display count (ie jQuery return value)
-            echo $meta_count;
+            // Update the total votes
+            update_post_meta( $post_id, "votes_totalvotes", $meta_total );
+
+            calculatePercentage( $meta_up, $meta_total );
         }
-        else
+        else {
             echo "already voted";
+        }
     }
-    exit;
+    wp_die();
 }
 
-// time before user can vote again
-$timebeforerevote = 10; // = 10 minutes
+// calculate the percentage of votes
+function calculatePercentage( $meta_up, $meta_total )
+{
+    // calculate the percentage of up votes
+    $meta_percentage = round( $meta_up / $meta_total * 100 );
+
+    // Display percentage
+    echo '<div class="ratePercentage">' . $meta_percentage . '</div><!--.ratePercentage--></div><!--.post-rate-->';
+}
 
 // if user has already voted
 function hasAlreadyVoted($post_id)
 {
-    global $timebeforerevote;
+    // Get list of voters for the current post
+    $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
 
-    // Get voters'IPs for the current post
-    $userVotes = get_post_meta($post_id, "votes_uservotes");
-
-    if(!is_array($userVotes))
+    // if userVotes is an array
+    if( !is_array( $userVotes ) )
         $userVotes = array();
 
     // Retrieve user id
     $userID = get_current_user_id();
 
     // If user has already voted
-    if(in_array($userID, array_keys($userVotes)))
+    if( in_array( $userID, array_values( $userVotes ) ) )
     {
-        $time = $userVotes[$userID];
-        $now = time();
-
-        // Compare between current time and vote time
-        if(round(($now - $time) / 60) > $timebeforerevote)
-            return false;
-
-        return true;
+      return true;
     }
-    return false;
+    else
+    {
+      return false;
+    }
 }
 
 // generate html markup
 function generateRatingHTML($post_id)
 {
+    // get meta stuff
+    $meta_up = get_post_meta( $post_id, "votes_yesvotes", true );
+    $meta_total = get_post_meta( $post_id, "votes_totalvotes", true);
+
+    // name of theme
     $themename = "twentyeleven";
 
-    $vote_count = get_post_meta($post_id, "votes_totalcotes", true);
-
-    $output = '<p class="post-like">';
-    if(hasAlreadyVoted($post_id))
-        $output .= ' <span title="'.__('I like this article', $themename).'" class="like alreadyvoted"></span>';
+    // the html to write
+    $output = '<div class="post-rate">';
+    // what they'll see if they've already voted
+    if( hasAlreadyVoted( $post_id ) )
+    {
+        $output .= 'Current Percentage: ' . calculatePercentage( $meta_up, $meta_total );
+    }
     else
-        $output .= '<a href="#" data-post_id="'.$post_id.'">
-                    <span  title="'.__('I like this article', $themename).'"class="qtip like"></span>
-                </a>';
-        $output .= '<span class="count">'.$vote_count.'</span></p>';
-
+    {
+        $output .= '<a class="voteUp" href="#" data-post_id="'.$post_id.'">
+                    <span  title="'.__('I like this video', $themename).'"></span>
+                    </a>';
+        $output .= '<a class="voteDown" href="#" data-post_id="'.$post_id.'">
+                    <span  title="'.__('I dont like this video', $themename).'"></span>
+                    </a>';
+        $output .= calculatePercentage( $meta_up, $meta_total );
+    }
     return $output;
 }
 

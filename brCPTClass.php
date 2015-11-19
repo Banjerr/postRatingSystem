@@ -6,7 +6,7 @@ session_start();
  * @link http://benjaminredden.we.bs
  * based on Jeffery Ways CPT class
  */
-class BR_Post_Type
+class Post_Type
 {
     /**
      * The name of the post type.
@@ -267,7 +267,7 @@ class BR_Post_Type
 /*********/
 /* USAGE */
 /*********/
-// $product = new BR_Post_Type("movie");
+// $product = new Post_Type("movie");
 // $product->add_taxonomy('Actor');
 // $product->add_taxonomy('Director');
 // $product->add_meta_box('Movie Info', array(

@@ -1,0 +1,18 @@
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+GENERAL
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
+
+.post-rate a {
+  text-decoration: none;
+  transition: all .4s ease-out;
+}
+
+.post-rate .voteUp:after {
+    content: '\f164';
+    font-family: FontAwesome;
+}
+
+.post-rate .voteDown:after {
+  content: '\f165';
+  font-family: FontAwesome;
+}
