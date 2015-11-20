@@ -2,9 +2,15 @@
 GENERAL
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
 
+.post-rate {
+    width: 200px;
+    box-shadow: 0 0 12px #000;
+    text-align: center;
+}
+
 .post-rate a {
-  text-decoration: none;
-  transition: all .4s ease-out;
+    text-decoration: none;
+    transition: all .4s ease-out;
 }
 
 .post-rate .voteUp:after {
@@ -13,6 +19,16 @@ GENERAL
 }
 
 .post-rate .voteDown:after {
-  content: '\f165';
-  font-family: FontAwesome;
+    content: '\f165';
+    font-family: FontAwesome;
+}
+
+.post-rate .ratePercentage {
+    text-align: center;
+}
+
+.post-rate .ratePercentage .percentageChart {
+    height: 40px;
+    background-color: red;
+    transition: all .4s ease-out;
 }

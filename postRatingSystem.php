@@ -68,11 +68,6 @@ function post_rateDown()
         // Get voters for the current post
         $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
 
-        // make the array if it's not already made
-        if( !is_array( $userVotes ) ) {
-            $userVotes = array();
-        }
-
         // Get down vote count for the current post
         $meta_down = get_post_meta( $post_id, "votes_novotes", true );
 
@@ -83,7 +78,7 @@ function post_rateDown()
         if( !hasAlreadyVoted( $post_id ) )
         {
             // push user id into userVotes array and increase votes count
-            update_post_meta( $post_id, "votes_uservotes", $userVotes, false );
+            add_post_meta( $post_id, "votes_uservotes", $userVotes, false );
             update_post_meta( $post_id, "votes_novotes", ++$meta_down );
 
             // total the up/down votes together
@@ -124,10 +119,6 @@ function post_rateUp()
         // Get voters'IPs for the current post
         $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
 
-        if( !is_array( $userVotes ) ) {
-            $userVotes = array();
-        }
-
         // Get yes votes count for the current post
         $meta_up = get_post_meta( $post_id, "votes_yesvotes", true );
 
@@ -160,11 +151,24 @@ function post_rateUp()
 // calculate the percentage of votes
 function calculatePercentage( $meta_up, $meta_total )
 {
-    // calculate the percentage of up votes
-    $meta_percentage = round( $meta_up / $meta_total * 100 );
-
-    // Display percentage
-    echo '<div class="ratePercentage">' . $meta_percentage . '</div><!--.ratePercentage--></div><!--.post-rate-->';
+    if( $meta_up && $meta_total ) // if $meta_up and $meta_total already exist
+    {
+      // calculate the percentage of up votes
+      $meta_percentage = round( $meta_up / $meta_total * 100 );
+        // if its an AJAX call
+      if (defined('DOING_AJAX') && DOING_AJAX)
+      {
+        // Display percentage
+        echo '<div class="ratePercentage"><div class="percentageChart" style="width:'. $meta_percentage .'%;"></div><h2>' . $meta_percentage . '%</h2></div><!--.ratePercentage-->';
+      } else // if its not an AJAX call
+      {
+        // Display percentage
+        return '<div class="ratePercentage"><div class="percentageChart" style="width:'. $meta_percentage .'%;"></div><h2>' . $meta_percentage . '%</h2></div><!--.ratePercentage-->';
+      }
+    } else // if $meta_up and $meta_total do no exist
+    {
+      echo 'No votes yet';
+    }
 }
 
 // if user has already voted
@@ -206,9 +210,9 @@ function generateRatingHTML($post_id)
     // what they'll see if they've already voted
     if( hasAlreadyVoted( $post_id ) )
     {
-        $output .= 'Current Percentage: ' . calculatePercentage( $meta_up, $meta_total );
+        $output .= calculatePercentage( $meta_up, $meta_total );
     }
-    else
+    else // if they haven't voted yet
     {
         $output .= '<a class="voteUp" href="#" data-post_id="'.$post_id.'">
                     <span  title="'.__('I like this video', $themename).'"></span>
@@ -217,6 +221,7 @@ function generateRatingHTML($post_id)
                     <span  title="'.__('I dont like this video', $themename).'"></span>
                     </a>';
         $output .= calculatePercentage( $meta_up, $meta_total );
+        $output .= '</div><!--.post-rate-->';
     }
     return $output;
 }

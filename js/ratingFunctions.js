@@ -16,9 +16,6 @@ jQuery( document ).ready( function() {
                 // If vote successful
                 if( response != "already voted" )
                 {
-                    //heart.addClass( "voted" );
-                    //heart.siblings( ".count" ).text( count );
-
                     // add the percentage
                     jQuery( '.ratePercentage' ).html( response );
 
@@ -51,9 +48,6 @@ jQuery( document ).ready( function() {
                 // If vote successful
                 if( response != "already voted" )
                 {
-                    // heart.addClass( "voted" );
-                    // heart.siblings( ".count" ).text( count );
-
                     // add the percentage
                     jQuery( '.ratePercentage' ).html( response );
 
