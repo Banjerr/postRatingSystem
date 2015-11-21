@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Banjerr/postRatingSystem.svg?branch=master)](https://travis-ci.org/Banjerr/postRatingSystem)
+
 # Post Rating System
 
 WP plugin that allows you to add a rating system (for logged in users) to posts/custom posts/pages/etc. (default is set to a custom post type, which is also created by the plugin on activation)
