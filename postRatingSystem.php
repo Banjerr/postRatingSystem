@@ -23,7 +23,7 @@ add_action( 'wp_ajax_post_down', 'post_rateDown' );
 $videoPosts = new Post_Type( 'Video Post' );
 
 // taxonomy for videoPosts
-$videoPosts->add_taxonomy( 'VideoSubject' );
+$videoPosts->add_taxonomy( 'Video Subject' );
 
 // add custom fields for yes/no/userVotes
 $videoPosts->add_meta_box( 'Votes', array(
