@@ -9,29 +9,12 @@
 * License: GPL2.0
 */
 
-// require CPT helper class
-include( plugin_dir_path( __FILE__ ) . 'brCPTClass.php' );
-
 // add actions
 add_action( 'wp_enqueue_scripts', 'enqueuePostRatingScripts' );
 add_action( 'wp_ajax_nopriv_post_up', 'post_rateUp' );
 add_action( 'wp_ajax_post_up', 'post_rateUp' );
 add_action( 'wp_ajax_nopriv_post_down', 'post_rateDown' );
 add_action( 'wp_ajax_post_down', 'post_rateDown' );
-
-// set up the post type we want the rating system for
-$videoPosts = new Post_Type( 'Video Post' );
-
-// taxonomy for videoPosts
-$videoPosts->add_taxonomy( 'Video Subject' );
-
-// add custom fields for yes/no/userVotes
-$videoPosts->add_meta_box( 'Votes', array(
-  'yesVotes' => 'text',
-  'noVotes' => 'text',
-  'totalVotes' => 'text',
-  'userVotes' => 'text'
-) );
 
 // enqueue the js/styles
 function enqueuePostRatingScripts() {
@@ -66,7 +49,7 @@ function post_rateDown()
         $post_id = $_POST['post_id'];
 
         // Get voters for the current post
-        $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
+        $userVotes = json_decode(get_post_meta( $post_id, "votes_uservotes", true));
 
         // Get down vote count for the current post
         $meta_down = get_post_meta( $post_id, "votes_novotes", true );
@@ -84,7 +67,8 @@ function post_rateDown()
         if( !hasAlreadyVoted( $post_id ) )
         {
             // push user id into userVotes and increase votes count
-            add_post_meta( $post_id, "votes_uservotes", $userID, false );
+            $userVotes[] = $userID;
+            update_post_meta($post_id, 'votes_uservotes', json_encode($userVotes));
             update_post_meta( $post_id, "votes_novotes", ++$meta_down );
 
             // total the up/down votes together
@@ -95,7 +79,7 @@ function post_rateDown()
             update_post_meta( $post_id, "votes_totalvotes", $meta_total );
 
             // calculate that stuff
-            calculatePercentage( $meta_up, $meta_total );
+            calculatePercentage( $meta_up, $meta_total, $post_id );
         }
         else // if user has already voted
         {
@@ -125,7 +109,7 @@ function post_rateUp()
         $post_id = $_POST['post_id'];
 
         // Get voters'IPs for the current post
-        $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
+        $userVotes = json_decode(get_post_meta( $post_id, "votes_uservotes", true ));
 
         // Get yes votes count for the current post
         $meta_up = get_post_meta( $post_id, "votes_yesvotes", true );
@@ -143,7 +127,8 @@ function post_rateUp()
         if( !hasAlreadyVoted( $post_id ) )
         {
             // push user id into userVotes and increase votes count
-            add_post_meta( $post_id, "votes_uservotes", $userID, false );
+            $userVotes[] = $userID;
+            update_post_meta($post_id, 'votes_uservotes', json_encode($userVotes));
             update_post_meta( $post_id, "votes_yesvotes", ++$meta_up );
 
             // total the up/down votes together
@@ -154,7 +139,7 @@ function post_rateUp()
             update_post_meta( $post_id, "votes_totalvotes", $meta_total );
 
             // calculate that stuff
-            calculatePercentage( $meta_up, $meta_total );
+            calculatePercentage( $meta_up, $meta_total, $post_id );
         }
         else // if user has already voted
         {
@@ -165,12 +150,14 @@ function post_rateUp()
 }
 
 // calculate the percentage of votes
-function calculatePercentage( $meta_up, $meta_total )
+function calculatePercentage( $meta_up, $meta_total, $post_id )
 {
     if( $meta_up && $meta_total ) // if $meta_up and $meta_total already exist
     {
       // calculate the percentage of up votes
       $meta_percentage = round( $meta_up / $meta_total * 100 );
+
+      update_post_meta($post_id, 'votes_percentage', $meta_percentage);
 
         // if its an AJAX call
       if (  defined( 'DOING_AJAX' ) && DOING_AJAX )
@@ -200,7 +187,7 @@ function calculatePercentage( $meta_up, $meta_total )
 function hasAlreadyVoted($post_id)
 {
     // Get list of voters for the current post
-    $userVotes = get_post_meta( $post_id, "votes_uservotes", false );
+    $userVotes = json_decode(get_post_meta( $post_id, "votes_uservotes", true ));
 
     // if userVotes is an array
     if( !is_array( $userVotes ) )
@@ -236,16 +223,18 @@ function generateRatingHTML($post_id)
     // what they'll see if they've already voted
     if( hasAlreadyVoted( $post_id ) )
     {
-        $output .= '<span style="opacity: 0;" class="voteUp" href="#" data-post_id="'.$post_id.'"></span>';
-        $output .= '<span style="opacity: 0;" class="voteDown" href="#" data-post_id="'.$post_id.'"></span>';
         $output .= '<div class="ratePercentage"><div class="percentageChart" style="width:'. calculatePercentage($meta_up, $meta_total)
-         .';"></div><h2>' . calculatePercentage($meta_up, $meta_total) . '</h2></div><!--.ratePercentage-->';
+         .';"></div><h2>' . calculatePercentage($meta_up, $meta_total) . '
+</h2></div><!--.ratePercentage-->';
+        $output .= '<span class="voteUp alreadyVoted" data-post_id="'.$post_id.'"></span>';
+        $output .= '<span class="voteDown alreadyVoted" data-post_id="'.$post_id.'"></span>';
+        $output .= '</div><!--.post-rate-->';
     }
     else // if they haven't voted yet
     {
+        $output .= '<div class="ratePercentage"><div class="percentageChart" style="width:'. calculatePercentage($meta_up, $meta_total) .';"></div><h2>' . calculatePercentage($meta_up, $meta_total) . '</h2></div><!--.ratePercentage-->';
         $output .= '<a class="voteUp" href="#" data-post_id="'.$post_id.'"></a>';
         $output .= '<a class="voteDown" href="#" data-post_id="'.$post_id.'"></a>';
-        $output .= '<div class="ratePercentage"><div class="percentageChart" style="width:'. calculatePercentage($meta_up, $meta_total) .';"></div><h2>' . calculatePercentage($meta_up, $meta_total) . '</h2></div><!--.ratePercentage-->';
         $output .= '</div><!--.post-rate-->';
     }
     return $output;
