@@ -1,3 +1,5 @@
+# I'M NOT EVEN TRYING ANY MORE
+
 [![Build Status](https://travis-ci.org/Banjerr/postRatingSystem.svg?branch=master)](https://travis-ci.org/Banjerr/postRatingSystem)
 
 # Post Rating System
